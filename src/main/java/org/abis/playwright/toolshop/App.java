@@ -1,4 +1,4 @@
-package org.example;
+package org.abis.playwright.toolshop;
 
 /**
  * Hello world!

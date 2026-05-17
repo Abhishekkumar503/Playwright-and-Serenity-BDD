@@ -1,4 +1,4 @@
-package org.example;
+package org.abis.playwright.toolshop;
 
 import junit.framework.Test;
 import junit.framework.TestCase;
