@@ -1,0 +1,117 @@
+package org.abis.playwright.toolshop.contact;
+
+import com.microsoft.playwright.Page;
+import com.microsoft.playwright.junit.UsePlaywright;
+
+import net.serenitybdd.annotations.Feature;
+import net.serenitybdd.annotations.Story;
+import net.serenitybdd.junit5.SerenityJUnit5Extension;
+import net.serenitybdd.playwright.junit5.SerenityPlaywrightExtension;
+import org.abis.playwright.toolshop.catalog.pageobjects.NavBar;
+import org.abis.playwright.toolshop.fixtures.ChromeHeadlessOptions;
+import org.abis.playwright.toolshop.fixtures.WithTracing;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+
+import java.net.URISyntaxException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat;
+
+@ExtendWith(SerenityJUnit5Extension.class)
+@ExtendWith(SerenityPlaywrightExtension.class)
+@DisplayName("Contact form")
+@Feature("Contacts")
+@UsePlaywright(ChromeHeadlessOptions.class)
+public class ContactFormTest implements WithTracing {
+
+    ContactForm contactForm;
+    NavBar navigate;
+
+    @BeforeEach
+    void openContactPage(Page page) {
+        contactForm = new ContactForm(page);
+        navigate = new NavBar(page);
+        navigate.toTheContactPage();
+    }
+
+    @Story("Contact form")
+    @DisplayName("Customers can use the contact form to contact us")
+    @Test
+    void completeForm(Page page) throws URISyntaxException {
+        contactForm.setFirstName("Sarah-Jane");
+        contactForm.setLastName("Smith");
+        contactForm.setEmail("sarah@example.com");
+        contactForm.setMessage("A very long message to the warranty service about a warranty on a product!");
+        contactForm.selectSubject("Warranty");
+
+        Path fileToUpload = Paths.get(ClassLoader.getSystemResource("data/sample-data.txt").toURI());
+        contactForm.setAttachment(fileToUpload);
+
+        contactForm.submitForm();
+
+        assertThat(contactForm.alertMessage()).isVisible();
+        assertThat(contactForm.alertMessage()).hasText("Thanks for your message! We will contact you shortly.");
+    }
+
+    @Story("Contact form")
+    @DisplayName("First name, last name, email and message are mandatory")
+    @ParameterizedTest(name = "{arguments} is a mandatory field")
+    @ValueSource(strings = {"First name", "Last name", "Email", "Message"})
+    void mandatoryFields(String fieldName, Page page) {
+        // Fill in the field values
+        contactForm.setFirstName("Sarah-Jane");
+        contactForm.setLastName("Smith");
+        contactForm.setEmail("sarah@example.com");
+        contactForm.setMessage("A very long message to the warranty service about a warranty on a product!");
+        contactForm.selectSubject("Warranty");
+
+        // Clear one of the fields
+        contactForm.clearField(fieldName);
+
+        contactForm.submitForm();
+
+        // Check the error message for that field
+        assertThat(contactForm.alertMessage()).isVisible();
+        assertThat(contactForm.alertMessage()).hasText(fieldName + " is required");
+    }
+
+    @Story("Contact form")
+    @DisplayName("The message must be at least 50 characters long")
+    @Test
+    void messageTooShort(Page page) {
+
+        contactForm.setFirstName("Sarah-Jane");
+        contactForm.setLastName("Smith");
+        contactForm.setEmail("sarah@example.com");
+        contactForm.setMessage("A short long message.");
+        contactForm.selectSubject("Warranty");
+
+        contactForm.submitForm();
+
+        assertThat(contactForm.alertMessage()).isVisible();
+        assertThat(contactForm.alertMessage()).hasText("Message must be minimal 50 characters");
+    }
+
+    @Story("Contact form")
+    @DisplayName("The email address must be correctly formatted")
+    @ParameterizedTest(name = "'{arguments}' should be rejected")
+    @ValueSource(strings = {"not-an-email", "not-an.email.com", "notanemail"})
+    void invalidEmailField(String invalidEmail, Page page) {
+        contactForm.setFirstName("Sarah-Jane");
+        contactForm.setLastName("Smith");
+        contactForm.setEmail(invalidEmail);
+        contactForm.setMessage("A very long message to the warranty service about a warranty on a product!");
+        contactForm.selectSubject("Warranty");
+
+        contactForm.submitForm();
+
+        assertThat(contactForm.alertMessage()).isVisible();
+        assertThat(contactForm.alertMessage()).hasText("Email format is invalid");
+    }
+}
